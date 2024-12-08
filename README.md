@@ -1,1 +1,3 @@
-# ai_study_companion
+# AI Study Companion
+
+An AI based multiple questions generator.

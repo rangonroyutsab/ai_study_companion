@@ -9,6 +9,9 @@ import time
 
 genai.configure(api_key="AIzaSyAoapsmhtyLjkdEwfgEMNyivtEmSSdsVhA")  
 
+global start_num
+global end_num
+
 class PDFMCQApp:
     def __init__(self, root):
         self.root = root
@@ -17,18 +20,36 @@ class PDFMCQApp:
         self.current_page = 0
         self.mcq_data = None
         self.mcq_window = None  
+        self.current_page_var = tk.StringVar()
+        self.total_pages = 0
 
-        self.canvas = tk.Canvas(root, width=600, height=750)
-        self.canvas.grid(row=0, column=0, rowspan=3)
+        self.root.grid_rowconfigure(0, weight=1)  
+        self.root.grid_rowconfigure(1, weight=1)  
+        self.root.grid_columnconfigure(0, weight=1)  
+        self.root.grid_columnconfigure(2, weight=1)  
 
-        self.btn_frame = tk.Frame(root)
-        self.btn_frame.grid(row=3, column=0, sticky="n")
+        self.wrapper_frame = tk.Frame(self.root)
+        self.wrapper_frame.grid(row=1, column=1)  
+        self.wrapper_frame.grid_rowconfigure(0, weight=1)  
+        self.wrapper_frame.grid_columnconfigure(0, weight=1)
+
+        self.canvas = tk.Canvas(self.wrapper_frame, width=600, height=750)
+        self.canvas.grid(row=0, column=0, pady=5)  
+
+        self.btn_frame = tk.Frame(self.wrapper_frame)
+        self.btn_frame.grid(row=1, column=0)
+
+        self.btn_frame.columnconfigure(0, weight=1)
 
         self.open_btn = tk.Button(self.btn_frame, text="Open PDF", command=self.open_pdf)
         self.open_btn.pack(side=tk.LEFT, padx=10, pady=5)
 
         self.prev_btn = tk.Button(self.btn_frame, text="Previous Page", command=self.previous_page, state=tk.DISABLED)
         self.prev_btn.pack(side=tk.LEFT, padx=10, pady=5)
+
+        self.page_entry = tk.Entry(self.btn_frame, textvariable=self.current_page_var, width=10, justify="center")
+        self.page_entry.pack(side=tk.LEFT, padx=10, pady=5)
+        self.page_entry.bind("<Return>", self.jump_to_page)  
 
         self.next_btn = tk.Button(self.btn_frame, text="Next Page", command=self.next_page, state=tk.DISABLED)
         self.next_btn.pack(side=tk.LEFT, padx=10, pady=5)
@@ -41,17 +62,28 @@ class PDFMCQApp:
         self.canvas.destroy()
         self.btn_frame.destroy()
 
-        self.questions_canvas = tk.Canvas(self.root, width=600, height=700, bd=0, highlightthickness=0)
-        self.questions_canvas.grid(row=0, column=0, sticky="nsew")
+        self.root.grid_rowconfigure(0, weight=1)  
+        self.root.grid_rowconfigure(2, weight=1)  
+        self.root.grid_columnconfigure(0, weight=1)  
+        self.root.grid_columnconfigure(2, weight=1)  
 
-        self.scrollbar = tk.Scrollbar(self.root, orient="vertical", command=self.questions_canvas.yview)
-        self.scrollbar.grid(row=0, column=1, sticky="ns")
+        self.mcq_wrapper_frame = tk.Frame(self.root)
+        self.mcq_wrapper_frame.grid(row=1, column=1)  
+
+        self.questions_canvas = tk.Canvas(self.mcq_wrapper_frame, width=600, height=750, bd=0, highlightthickness=0)
+        self.questions_canvas.grid(row=0, column=0, pady=5)  
+
+        self.scrollbar = tk.Scrollbar(self.mcq_wrapper_frame, orient="vertical", command=self.questions_canvas.yview)
+        self.scrollbar.grid(row=0, column=1, sticky="ns")  
+
+        self.ques_btn_frame = tk.Frame(self.mcq_wrapper_frame)
+        self.ques_btn_frame.grid(row=1, column=0, sticky="n")
 
         self.questions_canvas.configure(yscrollcommand=self.scrollbar.set)
         self.scrollbar.configure(command=self.questions_canvas.yview)
 
-        self.questions_frame = tk.Canvas(self.questions_canvas, width=580, height=680)
-        self.questions_canvas.create_window((10, 10), window=self.questions_frame, anchor="nw")
+        self.questions_frame = tk.Canvas(self.questions_canvas, width=580, height=730)
+        self.questions_canvas.create_window((10, 0), window=self.questions_frame, anchor="nw")
 
         question_label = tk.Label(
             self.questions_frame, text="", justify="left", font=("Arial", 12)
@@ -62,10 +94,10 @@ class PDFMCQApp:
         self.options_frame = tk.Frame(self.questions_frame)
         self.options_frame.pack()
 
-        self.submit_btn = tk.Button(self.questions_frame, text="Submit Answer", command=self.submit_answer, state=tk.DISABLED)
+        self.submit_btn = tk.Button(self.ques_btn_frame, text="Submit Answer", command=self.submit_answer, state=tk.DISABLED)
         self.submit_btn.pack(side=tk.LEFT, padx=10, pady=5)
 
-        self.back_btn = tk.Button(self.questions_frame, text="Return to PDF", command=self.switch_to_pdf, state=tk.NORMAL)
+        self.back_btn = tk.Button(self.ques_btn_frame, text="Return to PDF", command=self.switch_to_pdf, state=tk.NORMAL)
         self.back_btn.pack(side=tk.LEFT, padx=10, pady=5)
 
         self.generate_mcq()
@@ -99,12 +131,10 @@ class PDFMCQApp:
         self.questions_canvas.yview_scroll(1, "units")
 
     def start_func(self):
-        global start_num
-        start_num = self.current_page
+        self.start_num = self.current_page
 
     def end_func(self):
-        global end_num
-        end_num = self.current_page
+        self.end_num = self.current_page
 
     def switch_to_pdf(self):
 
@@ -117,7 +147,7 @@ class PDFMCQApp:
 
         self.canvas.update_idletasks()
 
-        self.re_open_pdf(file_path, end_num)
+        self.re_open_pdf(self.end_num)
 
         self.canvas.update_idletasks()
 
@@ -126,7 +156,6 @@ class PDFMCQApp:
         global file_path
         filepath = filedialog.askopenfilename(filetypes=[("PDF Files", "*.pdf")])
         file_path = filepath
-        print(filepath, file_path)
         if not filepath:
             return
 
@@ -134,6 +163,8 @@ class PDFMCQApp:
 
             self.pdf_doc = fitz.open(file_path)
             self.current_page = 0
+            self.total_pages = len(self.pdf_doc)  
+            self.update_page_display()
             self.display_page(self.current_page)
 
             self.prev_btn.config(state=tk.NORMAL)
@@ -143,13 +174,14 @@ class PDFMCQApp:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to open PDF: {e}")
 
-    def re_open_pdf(self, path, page_num):
+    def re_open_pdf(self, page_num):
 
         try:
 
             self.pdf_doc = fitz.open(file_path)
             self.current_page=page_num
-            print(page_num)
+            self.total_pages = len(self.pdf_doc)  
+            self.update_page_display()
             self.display_page(self.current_page)
 
             self.prev_btn.config(state=tk.NORMAL)
@@ -164,9 +196,9 @@ class PDFMCQApp:
             return
 
         global page
-        print(page_num)
         page = self.pdf_doc[page_num]
-        pix = page.get_pixmap()
+        matrix=fitz.Matrix(3, 3)
+        pix = page.get_pixmap(matrix=matrix)
         img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
 
         self.canvas.update_idletasks()
@@ -193,7 +225,7 @@ class PDFMCQApp:
             temp_file_path = "temp_page.pdf"
             doc = fitz.open()  
 
-            for i in range(start_num, end_num+1):
+            for i in range(self.start_num, self.end_num+1):
                             page_text=self.pdf_doc[i].get_text()
                             mpage = doc.new_page()  
                             mpage.insert_text((72, 72), page_text)  
@@ -242,7 +274,6 @@ class PDFMCQApp:
 
             response = chat_session.send_message("Proceed with question generation")
             mcq_text = response.text
-            print("Gemini API Response:", response.text)
 
             self.mcq_data = self.parse_mcq(mcq_text)
             self.display_mcq()
@@ -312,7 +343,7 @@ class PDFMCQApp:
         j=1
         for question in self.mcq_data["questions"]:
             question_text = f"{j}. {question}"
-            tk.Label(self.options_frame, text=question_text, wraplength=550, justify="left", anchor="w", font=("Arial", 12)).pack(pady=5, fill="x", anchor="w")
+            tk.Label(self.options_frame, text=question_text, wraplength=550, justify="left", anchor="w", font=("Arial", 16)).pack(pady=(10, 5), fill="x", anchor="w")
             j+=1
             var=tk.StringVar(value="NONE")
             self.answer_vars.append(var)
@@ -320,7 +351,6 @@ class PDFMCQApp:
                 tk.Radiobutton(
                     self.options_frame, text=option, variable=var, value=option, indicatoron=True
                 ).pack(anchor=tk.W)
-                print(option)
 
         self.submit_btn.config(state=tk.NORMAL)
 
@@ -348,6 +378,7 @@ class PDFMCQApp:
             return
         self.current_page += 1
         self.display_page(self.current_page)
+        self.update_page_display()
 
     def previous_page(self):
         if self.current_page==0:
@@ -355,6 +386,29 @@ class PDFMCQApp:
             return
         self.current_page -= 1
         self.display_page(self.current_page)
+        self.update_page_display()
+
+    def update_page_display(self):
+        if self.pdf_doc is not None:
+            self.current_page_var.set(f"{self.current_page + 1}/{self.total_pages}")
+        else:
+            self.current_page_var.set("0/0")
+
+    def jump_to_page(self, event=None):
+        if self.pdf_doc is None:
+            return
+        try:
+
+            page_num = int(self.page_entry.get().split('/')[0]) - 1
+
+            if 0 <= page_num < self.total_pages:
+                self.current_page = page_num
+                self.display_page(self.current_page)  
+                self.update_page_display()  
+            else:
+                tk.messagebox.showerror("Error", "Invalid page number.")
+        except ValueError:
+            tk.messagebox.showerror("Error", "Please enter a valid page number.")
 
 if __name__ == "__main__":
     root = tk.Tk()
