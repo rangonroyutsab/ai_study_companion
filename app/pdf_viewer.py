@@ -2,10 +2,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from PIL import Image, ImageTk
 import fitz
-from mcq_generator import MCQGenerator
+from .mcq_generator import MCQGenerator
 
 class PDFViewer:
-    def __init__(self, root):
+    def __init__(self, root, pdf_doc=None, current_page=0):
         self.root = root
         self.root.title("PDF MCQ App")
         self.pdf_doc = None
@@ -14,6 +14,16 @@ class PDFViewer:
         self.total_pages = 0
 
         self.setup_ui()
+
+        if pdf_doc is not None:
+            self.pdf_doc = pdf_doc
+            self.current_page = current_page
+            self.total_pages = len(pdf_doc)
+            self.update_page_display()
+            self.display_page(self.current_page)
+            self.prev_btn.config(state=tk.NORMAL)
+            self.next_btn.config(state=tk.NORMAL)
+            self.gen_btn.config(state=tk.NORMAL)
 
     def setup_ui(self):
         self.root.grid_rowconfigure(0, weight=1)

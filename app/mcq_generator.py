@@ -1,12 +1,11 @@
 import tkinter as tk
 from tkinter import messagebox
 import fitz
-import google.generativeai as genai
 import os
 import re
 import time
-
-genai.configure(api_key="AIzaSyAoapsmhtyLjkdEwfgEMNyivtEmSSdsVhA")
+from .utils import client, upload_to_gemini, wait_for_files_active
+from google.genai import types
 
 class MCQGenerator:
     def __init__(self, root, pdf_doc, current_page):
@@ -78,8 +77,9 @@ class MCQGenerator:
         self.questions_canvas.yview_scroll(1, "units")
 
     def switch_to_pdf(self):
+        from .pdf_viewer import PDFViewer
         self.mcq_wrapper_frame.destroy()
-        PDFViewer(self.root)
+        PDFViewer(self.root, pdf_doc=self.pdf_doc, current_page=self.current_page)
 
     def generate_mcq(self):
         try:
@@ -93,46 +93,23 @@ class MCQGenerator:
             doc.save(temp_file_path)
             doc.close()
 
-            def upload_to_gemini(path, mime_type="application/pdf"):
-                file = genai.upload_file(path, mime_type=mime_type)
-                return file
-
-            def wait_for_files_active(files):
-                for name in (file.name for file in files):
-                    file = genai.get_file(name)
-                    while file.state.name == "PROCESSING":
-                        time.sleep(2)
-                        file = genai.get_file(name)
-                    if file.state.name != "ACTIVE":
-                        raise Exception(f"File {file.name} failed to process")
-
             uploaded_file = upload_to_gemini(temp_file_path)
             wait_for_files_active([uploaded_file])
 
-            generation_config = {
-                "temperature": 1,
-                "top_p": 0.95,
-                "top_k": 40,
-                "max_output_tokens": 8192,
-                "response_mime_type": "text/plain",
-            }
-            model = genai.GenerativeModel(
-                model_name="gemini-1.5-flash", generation_config=generation_config
+            response = client.models.generate_content(
+                # model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
+                contents=[
+                    uploaded_file,
+                    "Generate 10 multiple-choice questions from the PDF page. Format the answers according to this regex format: question_pattern => ^\\*\\*(\\d+)\\.\\s+(.*)\\*\\*$, option_pattern => ^\\((a|b|c|d)\\)\\s+(.*)$, answer_pattern => ^\\*\\*Answer:\\s+\\((a|b|c|d)\\)\\s+(.*)\\*\\*$. Do not add any extra text or formatting.",
+                ],
+                config=types.GenerateContentConfig(
+                    temperature=1,
+                    top_p=0.95,
+                    top_k=40,
+                    max_output_tokens=8192,
+                ),
             )
-
-            chat_session = model.start_chat(
-                history=[
-                    {
-                        "role": "user",
-                        "parts": [
-                            uploaded_file,
-                            "Generate 10 multiple-choice questions from the PDF page. Format the answers according to this regex format: question_pattern => ^\\*\\*(\\d+)\\.\\s+(.*)\\*\\*$, option_pattern => ^\\((a|b|c|d)\\)\\s+(.*)$, answer_pattern => ^\\*\\*Answer:\\s+\\((a|b|c|d)\\)\\s+(.*)\\*\\*$. Do not add any extra text or formatting.",
-                        ],
-                    }
-                ]
-            )
-
-            response = chat_session.send_message("Proceed with question generation")
             mcq_text = response.text
 
             self.mcq_data = self.parse_mcq(mcq_text)
