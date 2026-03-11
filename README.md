@@ -5,7 +5,7 @@ A Python desktop app that turns any PDF into an interactive quiz. Open a documen
 ## Features
 
 - Browse multi-page PDFs with previous/next navigation and direct page-jump
-- Generate 10 multiple-choice questions from the current page using Gemini 1.5 Flash
+- Generate 10 multiple-choice questions from the current page using Gemini 2.5 Flash
 - Interactive quiz UI with radio-button answer selection
 - Answer validation — all 10 must be correct to proceed; incorrect attempts let you retry
 - Returning from the quiz restores you to the same page you were on
@@ -17,7 +17,7 @@ A Python desktop app that turns any PDF into an interactive quiz. Open a documen
 - Dependencies listed in `requirements.txt`:
   - [PyMuPDF](https://pymupdf.readthedocs.io/) — PDF rendering and text extraction
   - [Pillow](https://pillow.readthedocs.io/) — image handling for the PDF canvas
-  - [google-generativeai](https://pypi.org/project/google-generativeai/) — Gemini API client
+  - [google-genai](https://pypi.org/project/google-genai/) — Gemini API client
   - [python-dotenv](https://pypi.org/project/python-dotenv/) — loads `.env` variables
 
 ## Setup
@@ -73,7 +73,7 @@ ai_study_companion/
 
 1. **Text extraction** — PyMuPDF (`fitz`) extracts the text layer from the current page and writes it to a temporary single-page PDF (`temp_page.pdf`).
 2. **Upload to Gemini** — The temporary PDF is uploaded via the Gemini Files API and polled until active.
-3. **Question generation** — Gemini 1.5 Flash is prompted to produce 10 MCQs in a strict plain-text format.
+3. **Question generation** — Gemini 2.5 Flash is prompted to produce 10 MCQs in a strict plain-text format.
 4. **Regex parsing** — `MCQGenerator.parse_mcq()` parses the response using three patterns:
    - Questions: `**N. question text**`
    - Options: `(a) option text`
